@@ -1,0 +1,157 @@
+<div class="shop-page">
+  <!-- 页面头部 -->
+  <div class="shop-header">
+    <div class="shop-title">
+      <h1>{{model.title}}</h1>
+      <p class="shop-status">状态: {{model.status}} | 更新时间: {{model.time}}</p>
+    </div>
+    
+    <!-- 购物车按钮 -->
+    <div class="cart-button-container">
+      <button class="btn btn-primary cart-toggle" {{on "click" this.toggleCart}}>
+        🛒 购物车 
+        {{#if this.cartItemCount}}
+          <span class="cart-badge">{{this.cartItemCount}}</span>
+        {{/if}}
+      </button>
+    </div>
+  </div>
+
+  <!-- 分类筛选 -->
+  <div class="category-filter">
+    <h3>商品分类</h3>
+    <div class="category-buttons">
+      {{#each this.categories as |category|}}
+        <button 
+          class="btn category-btn {{if (eq this.selectedCategory category) 'active' 'btn-default'}}"
+          {{on "click" (fn this.selectCategory category)}}
+        >
+          {{category}}
+        </button>
+      {{/each}}
+    </div>
+  </div>
+
+  <!-- 商品展示区 -->
+  <div class="products-container">
+    <div class="products-grid">
+      {{#each this.filteredProducts as |product|}}
+        <div class="product-card">
+          <div class="product-image">{{product.image}}</div>
+          <div class="product-info">
+            <h4 class="product-name">{{product.name}}</h4>
+            <p class="product-price">{{product.price}}</p>
+            <p class="product-category">分类: {{product.category}}</p>
+            <p class="product-description">{{product.description}}</p>
+          </div>
+          <div class="product-actions">
+            <button 
+              class="btn btn-default view-btn"
+              {{on "click" (fn this.viewProduct product)}}
+            >
+              查看详情
+            </button>
+            <button 
+              class="btn btn-primary add-to-cart-btn"
+              {{on "click" (fn this.addToCart product)}}
+            >
+              加入购物车
+            </button>
+          </div>
+        </div>
+      {{/each}}
+    </div>
+  </div>
+
+  <!-- 购物车侧边栏 -->
+  {{#if this.showCart}}
+    <div class="cart-overlay" {{on "click" this.toggleCart}}></div>
+    <div class="cart-sidebar">
+      <div class="cart-header">
+        <h3>🛒 购物车</h3>
+        <button class="btn btn-default close-cart" {{on "click" this.toggleCart}}>×</button>
+      </div>
+      
+      <div class="cart-content">
+        {{#if this.cartItems.length}}
+          {{#each this.cartItems as |item|}}
+            <div class="cart-item">
+              <div class="cart-item-info">
+                <span class="cart-item-image">{{item.product.image}}</span>
+                <div class="cart-item-details">
+                  <h5>{{item.product.name}}</h5>
+                  <p>{{item.product.price}}</p>
+                </div>
+              </div>
+              <div class="cart-item-controls">
+                <button
+                  class="btn btn-small quantity-btn"
+                  {{on "click" (fn this.decreaseQuantity item.product.id)}}
+                >
+                  -
+                </button>
+                <span class="quantity">{{item.quantity}}</span>
+                <button
+                  class="btn btn-small quantity-btn"
+                  {{on "click" (fn this.increaseQuantity item.product.id)}}
+                >
+                  +
+                </button>
+                <button 
+                  class="btn btn-danger remove-btn"
+                  {{on "click" (fn this.removeFromCart item.product.id)}}
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+          {{/each}}
+          
+          <div class="cart-total">
+            <h4>总计: ¥{{this.cartTotal}}</h4>
+            <button class="btn btn-primary checkout-btn" {{on "click" this.checkout}}>
+              结算
+            </button>
+          </div>
+        {{else}}
+          <p class="empty-cart">购物车为空</p>
+        {{/if}}
+      </div>
+    </div>
+  {{/if}}
+
+  <!-- 商品详情弹窗 -->
+  {{#if this.selectedProduct}}
+    <div class="product-modal-overlay" {{on "click" this.closeProductDetail}}></div>
+    <div class="product-modal">
+      <div class="modal-header">
+        <h3>{{this.selectedProduct.name}}</h3>
+        <button class="btn btn-default close-modal" {{on "click" this.closeProductDetail}}>×</button>
+      </div>
+      <div class="modal-content">
+        <div class="modal-image">{{this.selectedProduct.image}}</div>
+        <div class="modal-info">
+          <p class="modal-price">{{this.selectedProduct.price}}</p>
+          <p class="modal-category">分类: {{this.selectedProduct.category}}</p>
+          <p class="modal-description">{{this.selectedProduct.description}}</p>
+          <button 
+            class="btn btn-primary modal-add-to-cart"
+            {{on "click" (fn this.addToCart this.selectedProduct)}}
+          >
+            加入购物车
+          </button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+
+  <!-- 页面底部 -->
+  <div class="shop-footer">
+    <LinkTo @route="discovery.latest" class="btn btn-default">
+      ← 返回论坛
+    </LinkTo>
+    <p class="shop-info">
+      Ember {{model.ember_version}} | 插件版本 {{model.plugin_version}}
+    </p>
+  </div>
+</div>

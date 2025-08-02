@@ -1,0 +1,14 @@
+shop_plugin:
+  shop_plugin_enabled:
+    default: true
+    client: true
+    description: "启用商品小橱窗插件"
+  shop_plugin_max_products:
+    default: 50
+    min: 1
+    max: 100
+    description: "商品展示的最大数量"
+  shop_plugin_show_categories:
+    default: true
+    client: true
+    description: "是否显示商品分类筛选"
