@@ -1,0 +1,234 @@
+<div class="shop-page">
+  {{! 页面头部 }}
+  <div class="shop-header">
+    <div class="shop-header-content">
+      <h1 class="shop-title">{{model.shop_info.name}}</h1>
+      <p class="shop-tagline">{{model.shop_info.tagline}}</p>
+      
+      {{! 购物车按钮 }}
+      <button class="shop-cart-toggle btn btn-primary" {{on "click" this.toggleCart}}>
+        🛒 Cart ({{this.cartItemCount}})
+      </button>
+    </div>
+  </div>
+
+  {{! 搜索和筛选栏 }}
+  <div class="shop-filters">
+    <div class="shop-search">
+      <input 
+        type="text" 
+        placeholder="Search products..." 
+        value={{this.searchQuery}}
+        {{on "input" this.updateSearchQuery}}
+        class="shop-search-input"
+      />
+    </div>
+
+    {{! 分类筛选 }}
+    <div class="shop-categories">
+      {{#each model.categories as |category|}}
+        <button 
+          class="shop-category-btn {{if (eq this.selectedCategory category) 'active'}}"
+          {{on "click" (fn this.selectCategory category)}}
+        >
+          {{category}}
+        </button>
+      {{/each}}
+    </div>
+
+    {{! 排序和视图模式 }}
+    <div class="shop-controls">
+      <select {{on "change" this.changeSortBy}} class="shop-sort-select">
+        <option value="name">Sort by Name</option>
+        <option value="price-low">Price: Low to High</option>
+        <option value="price-high">Price: High to Low</option>
+        <option value="rating">Highest Rated</option>
+      </select>
+      
+      <button 
+        class="shop-view-toggle btn btn-default"
+        {{on "click" this.toggleViewMode}}
+      >
+        {{if (eq this.viewMode "grid") "📋 List" "⊞ Grid"}}
+      </button>
+    </div>
+  </div>
+
+  {{! 商品展示区域 }}
+  <div class="shop-products {{this.viewMode}}-view">
+    {{#if this.filteredProducts.length}}
+      {{#each this.filteredProducts as |product|}}
+        <div class="shop-product-card">
+          {{! 商品图片 }}
+          <div class="shop-product-image">
+            <img src={{product.image}} alt={{product.name}} loading="lazy" />
+            {{#if product.discount_percentage}}
+              <div class="shop-discount-badge">-{{product.discount_percentage}}%</div>
+            {{/if}}
+            {{#unless product.in_stock}}
+              <div class="shop-out-of-stock-overlay">Out of Stock</div>
+            {{/unless}}
+          </div>
+
+          {{! 商品信息 }}
+          <div class="shop-product-info">
+            <h3 class="shop-product-name">{{product.name}}</h3>
+            <p class="shop-product-category">{{product.category}}</p>
+            
+            {{! 评分 }}
+            <div class="shop-product-rating">
+              <span class="shop-rating-stars">
+                ★★★★★
+              </span>
+              <span class="shop-rating-text">{{product.rating}} ({{product.reviews_count}} reviews)</span>
+            </div>
+
+            {{! 价格 }}
+            <div class="shop-product-price">
+              {{#if product.discount_percentage}}
+                <span class="shop-original-price">${{product.original_price}}</span>
+              {{/if}}
+              <span class="shop-current-price">${{product.price}}</span>
+            </div>
+
+            {{! 商品描述 }}
+            <p class="shop-product-description">{{product.description}}</p>
+
+            {{! 标签 }}
+            <div class="shop-product-tags">
+              {{#each product.tags as |tag|}}
+                <span class="shop-tag">{{tag}}</span>
+              {{/each}}
+            </div>
+
+            {{! 操作按钮 }}
+            <div class="shop-product-actions">
+              <button 
+                class="btn btn-default shop-details-btn"
+                {{on "click" (fn this.showProductDetails product)}}
+              >
+                View Details
+              </button>
+              
+              {{#if product.in_stock}}
+                <button 
+                  class="btn btn-primary shop-add-to-cart-btn"
+                  {{on "click" (fn this.addToCart product)}}
+                >
+                  Add to Cart
+                </button>
+              {{else}}
+                <button class="btn btn-default" disabled>
+                  Out of Stock
+                </button>
+              {{/if}}
+            </div>
+          </div>
+        </div>
+      {{/each}}
+    {{else}}
+      <div class="shop-no-products">
+        <h3>No products found</h3>
+        <p>Try adjusting your search or filter criteria.</p>
+      </div>
+    {{/if}}
+  </div>
+
+  {{! 返回论坛按钮 }}
+  <div class="shop-footer">
+    <LinkTo @route="discovery.latest" class="btn btn-default shop-back-btn">
+      ← Back to Forum
+    </LinkTo>
+  </div>
+
+  {{! 购物车侧边栏 }}
+  {{#if this.showCart}}
+    <div class="shop-cart-overlay" {{on "click" this.toggleCart}}>
+      <div class="shop-cart-sidebar">
+        <div class="shop-cart-header">
+          <h3>Shopping Cart</h3>
+          <button class="shop-cart-close" {{on "click" this.toggleCart}}>×</button>
+        </div>
+
+        <div class="shop-cart-content">
+          {{#if this.cart.length}}
+            {{#each this.cart as |item|}}
+              <div class="shop-cart-item">
+                <img src={{item.image}} alt={{item.name}} class="shop-cart-item-image" />
+                <div class="shop-cart-item-info">
+                  <h4>{{item.name}}</h4>
+                  <p>${{item.price}}</p>
+                  <div class="shop-cart-item-controls">
+                    <button {{on "click" (fn this.decreaseQuantity item.id)}}>-</button>
+                    <span>{{item.quantity}}</span>
+                    <button {{on "click" (fn this.increaseQuantity item.id)}}>+</button>
+                    <button class="shop-remove-item" {{on "click" (fn this.removeFromCart item.id)}}>🗑️</button>
+                  </div>
+                </div>
+              </div>
+            {{/each}}
+
+            <div class="shop-cart-total">
+              <strong>Total: ${{this.cartTotal}}</strong>
+            </div>
+
+            <div class="shop-cart-actions">
+              <button class="btn btn-danger" {{on "click" this.clearCart}}>Clear Cart</button>
+              <button class="btn btn-primary" {{on "click" this.checkout}}>Checkout</button>
+            </div>
+          {{else}}
+            <p class="shop-cart-empty">Your cart is empty</p>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+  {{/if}}
+
+  {{! 商品详情模态框 }}
+  {{#if this.showProductModal}}
+    <div class="shop-modal-overlay" {{on "click" this.closeProductModal}}>
+      <div class="shop-modal">
+        <div class="shop-modal-header">
+          <h3>{{this.selectedProduct.name}}</h3>
+          <button class="shop-modal-close" {{on "click" this.closeProductModal}}>×</button>
+        </div>
+
+        <div class="shop-modal-content">
+          <img src={{this.selectedProduct.image}} alt={{this.selectedProduct.name}} class="shop-modal-image" />
+          <div class="shop-modal-info">
+            <p class="shop-modal-category">{{this.selectedProduct.category}}</p>
+            <div class="shop-modal-rating">
+              <span class="shop-rating-stars">
+                ★★★★★
+              </span>
+              <span>{{this.selectedProduct.rating}} ({{this.selectedProduct.reviews_count}} reviews)</span>
+            </div>
+            <div class="shop-modal-price">
+              {{#if this.selectedProduct.discount_percentage}}
+                <span class="shop-original-price">${{this.selectedProduct.original_price}}</span>
+              {{/if}}
+              <span class="shop-current-price">${{this.selectedProduct.price}}</span>
+            </div>
+            <p class="shop-modal-description">{{this.selectedProduct.description}}</p>
+            <div class="shop-modal-tags">
+              {{#each this.selectedProduct.tags as |tag|}}
+                <span class="shop-tag">{{tag}}</span>
+              {{/each}}
+            </div>
+
+            {{#if this.selectedProduct.in_stock}}
+              <button
+                class="btn btn-primary shop-modal-add-to-cart"
+                {{on "click" (fn this.addToCart this.selectedProduct)}}
+              >
+                Add to Cart
+              </button>
+            {{else}}
+              <button class="btn btn-default" disabled>Out of Stock</button>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+</div>

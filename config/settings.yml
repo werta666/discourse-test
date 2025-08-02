@@ -1,0 +1,4 @@
+shop_plugin:
+  shop_plugin_enabled:
+    default: true
+    client: true
