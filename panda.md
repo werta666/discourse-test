@@ -40,7 +40,91 @@
 - 在 Ember v5.12.0 中不是推荐做法
 - 代码复杂度更高，维护困难
 
-## 📋 核心文件结构
+## � Rails Engine 最小可用配置
+
+### 完整的最小文件结构（防止 502）
+
+```
+discourse-panda-plugin/
+├── plugin.rb                                    # 主配置
+├── lib/
+│   └── panda_plugin_module/
+│       └── engine.rb                            # Engine 定义
+├── config/
+│   ├── routes.rb                                # Engine 路由
+│   └── settings.yml                             # 插件设置
+└── app/
+    └── controllers/
+        └── panda_plugin_module/
+            └── panda_controller.rb              # 控制器
+```
+
+### 最小可用的 plugin.rb 模板
+
+```ruby
+# frozen_string_literal: true
+
+# name: discourse-panda-plugin
+# about: A Panda-themed plugin
+# version: 0.0.1
+# authors: Panda_CC
+# required_version: 2.7.0
+
+enabled_site_setting :panda_plugin_enabled
+
+module ::PandaPluginModule
+  PLUGIN_NAME = "discourse-panda-plugin"
+end
+
+require_relative "lib/panda_plugin_module/engine"
+
+after_initialize do
+  Discourse::Application.routes.append do
+    mount ::PandaPluginModule::Engine, at: "/panda"
+  end
+end
+```
+
+### 最小可用的 engine.rb 模板
+
+```ruby
+# frozen_string_literal: true
+
+module ::PandaPluginModule
+  class Engine < ::Rails::Engine
+    engine_name PLUGIN_NAME
+    isolate_namespace PandaPluginModule
+  end
+end
+```
+
+### 最小可用的 routes.rb 模板
+
+```ruby
+# frozen_string_literal: true
+
+PandaPluginModule::Engine.routes.draw do
+  get "/" => "panda#index"
+end
+```
+
+### 最小可用的控制器模板
+
+```ruby
+# frozen_string_literal: true
+
+module ::PandaPluginModule
+  class PandaController < ::ApplicationController
+    requires_plugin PandaPluginModule::PLUGIN_NAME
+
+    def index
+      render plain: "🐼 Panda Plugin Working!"
+    end
+  end
+end
+```
+
+## �📋 核心文件结构
 
 ### 1. 插件主配置文件 (`plugin.rb`)
 
@@ -74,10 +158,12 @@ after_initialize do
 end
 ```
 
-**关键点**:
-- 使用 `mount ::PandaPluginModule::Engine, at: "/panda"` 挂载 Engine
-- 注册 SCSS 样式文件
-- 在 `after_initialize` 中进行路由注册
+**⚠️ 防止 502 错误的关键点**:
+- `require_relative "lib/panda_plugin_module/engine"` 必须在 `after_initialize` 之前
+- Engine 挂载必须在 `after_initialize` 块内
+- 模块名 `::PandaPluginModule` 必须与文件路径匹配
+- `PLUGIN_NAME` 必须在模块定义之前声明
+- 不要在 `plugin.rb` 中直接定义路由，只挂载 Engine
 
 ### 2. Rails Engine 配置 (`lib/panda_plugin_module/engine.rb`)
 
@@ -93,10 +179,12 @@ module ::PandaPluginModule
 end
 ```
 
-**关键点**:
-- 继承 `::Rails::Engine`
-- 使用 `isolate_namespace` 隔离命名空间
-- 配置自动加载路径
+**⚠️ 防止 502 错误的关键点**:
+- 文件路径必须精确：`lib/panda_plugin_module/engine.rb`
+- 模块名必须与目录名匹配：`PandaPluginModule`
+- `engine_name PLUGIN_NAME` 中的 `PLUGIN_NAME` 必须在 `plugin.rb` 中定义
+- `isolate_namespace` 防止命名空间冲突
+- 不要添加额外的配置，保持最简
 
 ### 3. 路由配置 (`config/routes.rb`)
 
@@ -108,9 +196,12 @@ PandaPluginModule::Engine.routes.draw do
 end
 ```
 
-**关键点**:
-- 在 Engine 内部定义路由
-- 简洁的路由配置，只保留核心功能
+**⚠️ 防止 502 错误的关键点**:
+- 路由必须在 Engine 内部定义，不能在 `plugin.rb` 中
+- 控制器名 `"panda"` 对应 `PandaController`
+- 只定义一个根路由 `"/"`，对应挂载点 `/panda`
+- 不要添加其他路由如 `.json` 或 `/test`
+- Engine 路由与 Discourse 主路由完全隔离
 
 ### 4. 后端控制器 (`app/controllers/panda_plugin_module/panda_controller.rb`)
 
@@ -314,7 +405,69 @@ README.md                                    # 用户文档
 TECHNICAL_GUIDE.md                          # 技术文档
 ```
 
-## 🚫 失败的尝试和教训
+## � 502 错误专项排查
+
+### 502 错误的常见原因和解决方案
+
+**1. Engine 文件路径错误**
+```
+❌ 错误：lib/engine.rb
+❌ 错误：lib/panda_plugin/engine.rb
+✅ 正确：lib/panda_plugin_module/engine.rb
+```
+
+**2. 模块命名不匹配**
+```ruby
+❌ 错误：module PandaPlugin
+✅ 正确：module ::PandaPluginModule
+```
+
+**3. require_relative 路径错误**
+```ruby
+❌ 错误：require_relative "lib/engine"
+✅ 正确：require_relative "lib/panda_plugin_module/engine"
+```
+
+**4. 控制器命名空间错误**
+```ruby
+❌ 错误：class PandaController < ApplicationController
+✅ 正确：module ::PandaPluginModule
+           class PandaController < ::ApplicationController
+```
+
+**5. Engine 挂载位置错误**
+```ruby
+❌ 错误：在 plugin.rb 顶层挂载
+✅ 正确：在 after_initialize 块内挂载
+```
+
+### 502 错误调试步骤
+
+1. **检查 Discourse 日志**
+```bash
+tail -f /var/discourse/shared/standalone/log/rails/production.log
+```
+
+2. **验证文件存在**
+```bash
+ls -la plugins/discourse-panda-plugin/lib/panda_plugin_module/engine.rb
+```
+
+3. **检查语法错误**
+```bash
+ruby -c plugin.rb
+ruby -c lib/panda_plugin_module/engine.rb
+```
+
+4. **验证模块加载**
+在 `plugin.rb` 中添加调试：
+```ruby
+Rails.logger.info "🐼 Loading PandaPluginModule"
+require_relative "lib/panda_plugin_module/engine"
+Rails.logger.info "🐼 Engine loaded successfully"
+```
+
+## �🚫 失败的尝试和教训
 
 ### 1. 直接路由注册 (❌ 失败)
 
@@ -426,28 +579,92 @@ console.log("🐼 Panda Plugin loaded successfully!");
 - 检查模板中的事件绑定语法
 - 验证控制器方法是否正确定义
 
-## 🎯 AI 实现指导
+## 🤖 AI 快速实现指南
 
-如果你是下一个 AI 需要实现此插件，请严格按照以下顺序：
+### 第一步：创建最小可用版本（避免 502）
 
-1. **创建后端结构**：
-   - 先创建 `plugin.rb`（包含 Engine 挂载）
-   - 创建 `lib/panda_plugin_module/engine.rb`
-   - 创建 `config/routes.rb`（只有一个路由）
-   - 创建控制器（继承 ApplicationController）
+**严格按此顺序创建文件，每个文件创建后立即测试**：
 
-2. **创建前端结构**：
-   - 创建路由映射（文件名很重要）
-   - 创建路由处理器（ES6 class）
-   - 创建控制器（使用 Glimmer Components）
-   - 创建模板（现代 Handlebars 语法）
-   - 创建初始化器
+1. **创建 `config/settings.yml`**
+```yaml
+panda_plugin:
+  panda_plugin_enabled:
+    default: true
+    client: true
+```
 
-3. **关键注意事项**：
-   - 使用 Glimmer Components，不是 Widget
-   - 所有文件路径和命名必须精确匹配
-   - 使用现代 Ember v5.12.0 语法
-   - 确保样式文件正确注册
+2. **创建 `lib/panda_plugin_module/engine.rb`**
+```ruby
+# frozen_string_literal: true
+module ::PandaPluginModule
+  class Engine < ::Rails::Engine
+    engine_name PLUGIN_NAME
+    isolate_namespace PandaPluginModule
+  end
+end
+```
+
+3. **创建 `config/routes.rb`**
+```ruby
+# frozen_string_literal: true
+PandaPluginModule::Engine.routes.draw do
+  get "/" => "panda#index"
+end
+```
+
+4. **创建 `app/controllers/panda_plugin_module/panda_controller.rb`**
+```ruby
+# frozen_string_literal: true
+module ::PandaPluginModule
+  class PandaController < ::ApplicationController
+    requires_plugin PandaPluginModule::PLUGIN_NAME
+    def index
+      render plain: "🐼 Working!"
+    end
+  end
+end
+```
+
+5. **创建 `plugin.rb`**
+```ruby
+# frozen_string_literal: true
+# name: discourse-panda-plugin
+# about: A Panda-themed plugin
+# version: 0.0.1
+# authors: Panda_CC
+# required_version: 2.7.0
+
+enabled_site_setting :panda_plugin_enabled
+
+module ::PandaPluginModule
+  PLUGIN_NAME = "discourse-panda-plugin"
+end
+
+require_relative "lib/panda_plugin_module/engine"
+
+after_initialize do
+  Discourse::Application.routes.append do
+    mount ::PandaPluginModule::Engine, at: "/panda"
+  end
+end
+```
+
+### 第二步：测试基础功能
+
+1. 重启 Discourse
+2. 访问 `/panda` 应该显示 "🐼 Working!"
+3. 如果出现 502，检查上述文件路径和命名
+
+### 第三步：添加 Ember 前端（仅在基础版本工作后）
+
+**只有在 `/panda` 返回 "🐼 Working!" 后才继续**
+
+### 关键避错要点
+
+- **文件路径必须精确匹配**
+- **模块名必须一致**：`PandaPluginModule`
+- **先测试最小版本，再添加功能**
+- **每次只改一个文件，立即测试**
 
 ---
 

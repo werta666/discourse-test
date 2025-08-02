@@ -17,11 +17,15 @@ module ::ShopPluginModule
   PLUGIN_NAME = "discourse-shop-plugin"
 end
 
+Rails.logger.info "🛍️ Loading ShopPluginModule"
 require_relative "lib/shop_plugin_module/engine"
+Rails.logger.info "🛍️ Engine loaded successfully"
 
 after_initialize do
   # 挂载 Engine 到 /shop 路径
+  Rails.logger.info "🛍️ Mounting Shop Engine"
   Discourse::Application.routes.append do
     mount ::ShopPluginModule::Engine, at: "/shop"
   end
+  Rails.logger.info "🛍️ Shop Engine mounted successfully"
 end
